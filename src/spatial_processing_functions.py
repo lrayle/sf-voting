@@ -9,48 +9,45 @@ import pandas as pd
 
 
 # function to load precinct boundary files, given a year
-def load_prec_shp(p_yr, new_crs='epsg:26910'):
+def load_prec_shp(p_yr, path='../data/spatial/'):
 	# p_yr: precinct year
-	# new_crs: desired reprojected crs
+    # path (str): path to shapefile
 
-    precinctpath = '../data/spatial/'
-    filename = precinctpath+'Precincts_{}/Precincts_{}.shp'.format(p_yr, p_yr)
-    pre_df = read_file(filename)
-    
-    # rename columns to standard names. ONly necessary for 2012. 
-    # what was originally 'PREC_2012' becomes 'precname'
-    if p_yr=='2012':
-        pre_df.columns = ['AssemDist', 'BARTDist', 'CongDist', 'NeighRep', 'PREC_2010','precname', 'Shape_Area', 'Shape_Leng', 'SupDist', 'geometry']
+    filename = 'Precincts_{}/Precincts_{}.shp'.format(p_yr, p_yr)
+    pre_df = read_file(path+filename)
     
     # For some reason, the 1992 shapefile has one row with a precname and no geom. After mapping it, 
     # it doesn't look like a problem to omit it. 
     n_old = len(pre_df)
+    
     pre_df = pre_df[pre_df.geometry.notnull()]
     n_new = len(pre_df)
     print('omitted {} row(s) with missing geometry'.format(n_old-n_new))
     
     #print(pre_df.head())
-    print(len(pre_df.precname.unique()))  # just checking how many precincts. Looks about right. 
-    
-    # reproject to a CRS with units as meters
-    pre_df.plot()
+    print('total {} precincts'.format(len(pre_df.precname.unique())))  # just checking how many precincts. Looks about right. 
+    return(pre_df)
+
+def reproject_prec(pre_df, new_crs='epsg:26910'):
+    # reproject to a CRS with units as meters and add area colunm (needed for pop density variable)
+    # new_crs: desired reprojected crs
     pre_df = pre_df.to_crs({'init': new_crs})  
     pre_df['area_m']=pre_df.geometry.area
-    return pre_df
+    return(pre_df)
 
 # function to load block group boundaries
-def load_bg_shp(bg_yr, new_crs='epsg:26910'):
+def load_bg_shp(bg_yr, path='../data/spatial/', new_crs='epsg:26910'):
 	# bg_yr: bg/census year 
+    # path (str): path to tiger files
 	# new_crs: desired reprojected crs
 
-    tigerpath = '../data/spatial/'
     if bg_yr == '2010':
         filename = 'tl_2010_06075_bg10/tl_2010_06075_bg10.shp'  # shapefile for SF block groups as defined in 2010
     elif bg_yr =='2000':
         filename = 'tl_2009_06075_bg00/tl_2009_06075_bg00.shp'
     else: 
         print('bg boundaries not available')
-    bg_df = read_file(tigerpath+filename)
+    bg_df = read_file(path+filename)
     
     # convert GEOID to string for merging later
     if bg_yr == '2010':
@@ -86,9 +83,9 @@ def merge_precinct_bg(pre_df, bg_df, yr_name):
     
     # drop the unneeded columns to clean up
     try:
-        cols_to_drop = ['AssemDist', 'BARTDist', 'CongDist', 'NeighRep', 'Shape_Area', 'Shape_Leng', 'SupDist', 'BLKGRPCE10', 'COUNTYFP10', 'FUNCSTAT10', 'INTPTLAT10', 'INTPTLON10', 'MTFCC10','NAMELSAD10', 'STATEFP10']
+        cols_to_drop = ['BLKGRPCE10', 'COUNTYFP10', 'FUNCSTAT10', 'INTPTLAT10', 'INTPTLON10', 'MTFCC10','NAMELSAD10', 'STATEFP10']
         newdf = newdf.drop(cols_to_drop, axis=1)
-    except:
+    except ValueError:
         print('cols not present')
     print(newdf.columns)
     
@@ -163,3 +160,5 @@ def rename_wgt_cols(df, var_list):
         new_cols.append(new_col)
     df.columns = new_cols
     return(df)
+
+    

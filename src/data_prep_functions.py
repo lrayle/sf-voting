@@ -326,6 +326,7 @@ def get_census_data(yr_key):
 # This function matches election with appropriate year for census dataset and precinct boundaries. 
 def voting2census_key(vote_key):
 	# vote_key: the 6-digit election year-month key
+    # can also be used to get justthe precinct key. 
 
     if int(vote_key)<=200211: # try changing the cutoff from 200203 to 200211. Yes this is better. 
         census_key = 'ce2000pre1992'
@@ -437,5 +438,42 @@ def combine_dataframes(data):
             n+=1
     return(df_old)
 
+def rename_columns(df):
+    """ rename columns to get rid of "_wgt"
+    Args:
+        df (DataFrame): dataframe with all data
+    Return: 
+        DataFrame: data with columns renamed
+    
+    """
+    new_col_names=[]
+    for col in list(df.columns):
+        if col[-4:]=='_wgt':
+            new_col = col[:-4]
+        else:
+            new_col = col
+        #print(new_col)
+        new_col_names.append(new_col)
+    df.columns = new_col_names
+    return(df)
 
+def filter_for_dates(df, prec_key):
+    """ Filters all vote data for appropriate elections/years based on the election date
+    Args: 
+        prec_key (str): e.g., 'pre1992'
+        df (DataFrame): all voting data. 
+    Returns: 
+        DataFrame: filtered data
+    """
+    if prec_key == 'pre1992':
+        new_df = df[df.yr_mo<=200211]   # 1992 precinct boundaries used up to and including Nov 2002
+    elif prec_key == 'pre2002':
+        new_df = df[(df.yr_mo>200211)&(df.yr_mo<=201210)] # 2002 precinct boundaries used up to and NOT including Nov 2012
+    elif prec_key == 'pre2012':
+        new_df= df[df.yr_mo>201210]
+    else: 
+        print('prec_key outside fo range')
+        new_df = None
+    
+    return(new_df)  
 
