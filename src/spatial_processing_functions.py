@@ -8,11 +8,11 @@ from geopandas.tools import overlay
 import pandas as pd
 
 
-# function to load precinct boundary files, given a year
 def load_prec_shp(p_yr, path='../data/spatial/'):
-	# p_yr: precinct year
-    # path (str): path to shapefile
-
+    """ Function to load precinct boundary files, given a year.
+    p_yr (str): precinct year
+    path (str): path to shapefile
+    """
     filename = 'Precincts_{}/Precincts_{}.shp'.format(p_yr, p_yr)
     pre_df = read_file(path+filename)
     
@@ -24,22 +24,24 @@ def load_prec_shp(p_yr, path='../data/spatial/'):
     n_new = len(pre_df)
     print('omitted {} row(s) with missing geometry'.format(n_old-n_new))
     
-    #print(pre_df.head())
-    print('total {} precincts'.format(len(pre_df.precname.unique())))  # just checking how many precincts. Looks about right. 
+    print('Year {}: total {} precincts'.format(p_yr, len(pre_df.precname.unique())))  # just checking how many precincts. 
     return(pre_df)
 
 def reproject_prec(pre_df, new_crs='epsg:26910'):
-    # reproject to a CRS with units as meters and add area colunm (needed for pop density variable)
-    # new_crs: desired reprojected crs
+    """reproject to a CRS with units as meters and add area colunm (needed for pop density variable)
+    new_crs(int): desired reprojected crs
+    """
     pre_df = pre_df.to_crs({'init': new_crs})  
     pre_df['area_m']=pre_df.geometry.area
     return(pre_df)
 
-# function to load block group boundaries
+
 def load_bg_shp(bg_yr, path='../data/spatial/', new_crs='epsg:26910'):
-	# bg_yr: bg/census year 
-    # path (str): path to tiger files
-	# new_crs: desired reprojected crs
+    """function to load block group boundaries
+    bg_yr (str): bg/census year 
+    path (str): path to tiger files
+    new_crs (int) : desired reprojected crs
+    """
 
     if bg_yr == '2010':
         filename = 'tl_2010_06075_bg10/tl_2010_06075_bg10.shp'  # shapefile for SF block groups as defined in 2010
@@ -62,22 +64,23 @@ def load_bg_shp(bg_yr, path='../data/spatial/', new_crs='epsg:26910'):
     bg_df = bg_df.to_crs({'init': new_crs}) 
     # while we're at it, add a column to calculate area in meters. 
     bg_df['area_m']=bg_df.geometry.area
-    print(bg_df.head())
+    #print(bg_df.head())
     #bg_df.plot() # check it out
     return(bg_df)
 
 
-# function to merge block group boundaries with precinct. 
-# since this takes a long time, do it minimum number of times. 
+
 def merge_precinct_bg(pre_df, bg_df, yr_name):
-	# pre_df: precinct geo dataframe
-	# bg_df: block group geo dataframe
-	# yr_name: string with year 
+    """ function to merge block group boundaries with precinct. (Will take a long time to do.)
+    pre_df (geoDataFrame): precinct 
+    bg_df (geoDataFrame): block groups
+    yr_name (str): year 
+    """
 
     print('working on intersection for year {}'.format(yr_name))
     newdf = overlay(pre_df, bg_df, how="intersection")
     # intersection has both precinct and block group IDs. 
-    newdf.head()
+    #newdf.head()
     # create a field with the area, will later divide by the total precinct area
     newdf['intersect_area']=newdf.geometry.area
     
@@ -88,20 +91,21 @@ def merge_precinct_bg(pre_df, bg_df, yr_name):
     except ValueError:
         print('cols not present')
     print(newdf.columns)
+    print('New df has {} precincts'.format(len(pre_df.precname.unique())))  # just checking how many precincts. 
     
     return(newdf)
 
-
-
-# Function to make correctly formatted geoid string column in census dataframe
 def make_geoid_field(df):
-	# df: dataframe with census data
+    """ Function to make correctly formatted geoid string column in census dataframe
+    df (DataFrame): census data
+    """
     df['geoid'] = df['state']+df['county']+df['tract']+df['block group']
     return(df)
 
-# Load 'raw' census data that was already collected from API
 def load_census_data(yr):
-	# yr: string with year
+    """ Load 'raw' census data that was already collected from API
+    yr (str): year
+    """
     censuspath = '../results/'
     df = pd.read_csv(censuspath+'census_data_{}.csv'.format(yr), dtype={'state':str,'county':str,'tract':str,'block group':str,'geoid':str})
     # if geoid field doesn't already exist, create it. 
@@ -109,10 +113,12 @@ def load_census_data(yr):
         df = make_geoid_field(df)
     return(df)
 
-# Save processed census data that is merged with precinct
+
 def save_census_data(df, yr):
-	# df: dataframe to save
-	# yr: string with year
+    """ Save processed census data that is merged with precinct
+    df (DataFrame): dataframe to save
+    yr (str): year
+    """
     censuspath = '../results/data_by_precinct/'
     filename = 'census_by_precinct_{}.csv'.format(yr)
     df.to_csv(censuspath+filename, index=True)
@@ -120,36 +126,44 @@ def save_census_data(df, yr):
     return()
     
     
-# Since we don't actually don't want to use all variables, just ones that are consistently available across years. 
-# Get variables to use as defined in the variables_codes.xlsx file
+
 def get_vars_to_use():
+    """ Since we don't actually don't want to use all variables, just ones that are consistently available across years. 
+    Get variables to use as defined in the variables_codes.xlsx file
+    """
     path='../data/census/'
     filename='variable_codes.xlsx'
     vars_df = pd.read_excel(path+filename)
     return(list(vars_df[vars_df['use_in_final']=='yes']['name']))
 
-# This will calculate area-weighted values for variables
-# Formula: x_pre=A_intersect1 / A_pre * x_bg1 +  A_intersect2 / A_pre * x_bg2
+
 def calc_variables(df, var_list):
-	# df: the dataframe containing census spatially merged with precincts
-	
+    """ This will calculate area-weighted values for variables. 
+    Formula: x_pre=A_intersect1 / A_pre * x_bg1 +  A_intersect2 / A_pre * x_bg2
+    df (DataFrame): the dataframe containing census spatially merged with precincts
+    """
+    
     for var in var_list: 
         df[var+'_wgt'] = df[var]*df.intersect_area/ df.area_m
     df['prop_area'] = df.intersect_area/ df.area_m  # include proportional area as a check. 
     return(df)
 
-# aggregate back together by precinct 'precname'
+
 def agg_vars_by_prec(df):
-	# df: the dataframe containing census spatially merged with precincts
+    """ aggregate back together by precinct 'precname'
+    df (DataFrame): the dataframe containing census spatially merged with precincts
+    """
+
     df_grouped = df.groupby(by='precname').sum()
     # check if area totals are correct. They should be about 1. 
-    print("something's wrong with these:\n", df_grouped[(df_grouped.prop_area >1.1)|(df_grouped.prop_area <.97)]['prop_area'])
+    print("Sum >1.1 or <.97:\n", df_grouped[(df_grouped.prop_area >1.1)|(df_grouped.prop_area <.97)]['prop_area'])
     return(df_grouped)
-
-# rename columns by taking off the '_wgt' (just remember they're the weighted variables)
+ 
 def rename_wgt_cols(df, var_list):
-	# df: the dataframe containing census spatially merged with precincts
-	# var_list: list of variables to use
+    """ rename columns by taking off the '_wgt' (just remember they're the weighted variables)
+    df (DataFrame): the dataframe containing census spatially merged with precincts
+    var_list (list): variables to use
+    """
     col_list = list(df.columns)
     new_cols= []
     for s in col_list:

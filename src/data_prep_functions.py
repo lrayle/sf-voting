@@ -54,12 +54,47 @@ def check_if_descriptive(elect_date):
 	# descriptive_labels=False Applies to dates '199603','199706','199711', '199806','199811'. So dates <='199811'
 	# clues are in the 'registered' column--which we ASSUME IS THE FIRST COLUMN!!
 	# d is election date string
-    if int(elect_date)<=199811:
-        result = False
-    else:
-        result=True
+    result =False
+    if int(elect_date)>199811:
+        result = True
     return(result)
 
+
+
+def get_ballot_type(s): 
+    """ For descriptive type index, finds ballot type. 
+    Args: 
+        s (str): index string. 
+    Returns: 
+        Str: ballot type "A" or "V"
+    """
+
+    if re.search('mail|absent|vbm',s,flags=re.IGNORECASE):    
+        ballot_type='A'
+    # if s is not a mail-in ballot
+    else:
+        ballot_type='V'
+    return(ballot_type)
+
+
+
+def get_prec_name(s): 
+    """ Keep only precinct name(s). This will get rid of descriptions and suffixes like "  - Vote By Mail / Absentee Reporting" 
+        and " - Election Day Reporting" and "   1102".  
+    Args: 
+        s (str): index string. 
+    Returns: 
+        Str: precinct name
+    """ 
+    if re.search('pct',s, flags=re.IGNORECASE):
+        split = re.split(' - |   ',s)
+        pct = split[0]
+        if re.search('-mail',s, flags=re.IGNORECASE):  # just a few have this pattern
+            split = re.split('-',s)
+            pct=split[0]
+    else: 
+        pct = 'Not a precinct'
+    return(pct)
 
 # turns single index into multiindex
 def format_df_to_multiindex(df, descriptive_labels=True):
@@ -68,27 +103,22 @@ def format_df_to_multiindex(df, descriptive_labels=True):
     ballot_types=[]
     precinct=[]
     for i, val in enumerate(df.index):
-        #if s contains something about mail or absentee or vbm:
+        # determin ballot type
+        ballot_type = None
         if descriptive_labels==True:
-            match=re.search('mail|absent|vbm',val,flags=re.IGNORECASE)
-            if match:    
-                ballot_type='A'
-                pct=match.string[:8]
-            # if s is not a mail-in ballot
-            else:
-                match = re.search('pct',val, flags=re.IGNORECASE)
-                if match:
-                    ballot_type='V'
-                    pct=match.string[:8]
-            
+            # determine ballot type. 
+            # if s contains something about mail or absentee or vbm:
+            ballot_type=get_ballot_type(val)
+
         if descriptive_labels==False:
             if (df.iloc[i,0]==0)|np.isnan(df.iloc[i,0]):
                 ballot_type='A'
             elif df.iloc[i,0]>0:
                 ballot_type='V'
-            match = re.search('pct',val, flags=re.IGNORECASE)
-            if match:
-                pct=match.string[:8]
+        
+        # just return precinct name
+        pct = get_prec_name(val)
+                
         ballot_types.append(ballot_type)
         precinct.append(pct)
     df['type']=ballot_types
@@ -287,11 +317,11 @@ def split_prec_rows(df):
     for idx in df.index:
         # look for rows with precincts that need to be split
         if re.search('\d{4}/\d{4}',idx):
-            a,b = idx.split('/')
             row_values = df.loc[idx]
-            df.loc[a] = row_values
-            df.loc[b] = row_values
-            
+            split = idx.split('/')
+            for p in split: 
+                df.loc[p] = row_values
+    
             # delete original row
             df = df.drop(idx, axis=0)
     return(df)
@@ -477,3 +507,216 @@ def filter_for_dates(df, prec_key):
     
     return(new_df)  
 
+
+def define_excel_params(vd):
+    """ The excel files are all in slightly different formats! Need this huge annoying list of custom parameters. 
+    vd (dict): Dictionary of data frames with vote data. 
+    """ 
+    
+    d ='200011'
+    l='K'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,5,6]
+    vd[d]['props'][l]['params']['skip_footer']=56
+
+    d ='200011'
+    l='L'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,8,9]
+    vd[d]['props'][l]['params']['skip_footer']=56
+
+    d ='200111'
+    l='D'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,7,8]
+    vd[d]['props'][l]['params']['skip_footer']=70
+
+    d ='199911'
+    l='J'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=4
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,9,10]
+    vd[d]['props'][l]['params']['skip_footer']=51
+
+    d ='199911'
+    l='H'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=4
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,15,16]
+    vd[d]['props'][l]['params']['skip_footer']=51
+
+    d ='199911'
+    l='I'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=4
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,6,7]
+    vd[d]['props'][l]['params']['skip_footer']=51
+
+    d ='200203'
+    l='D'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,23,24]
+    vd[d]['props'][l]['params']['skip_footer']=60
+
+    d ='200806'
+    l='F'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=2
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,24,25]
+    vd[d]['props'][l]['params']['skip_footer']=51
+
+    d ='200806'
+    l='G'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=2
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,28,29]
+    vd[d]['props'][l]['params']['skip_footer']=51
+
+    d ='199711'
+    l='H'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=3
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,14,15]
+    vd[d]['props'][l]['params']['skip_footer']=42
+
+    d ='199603'
+    l='B'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=3
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,8,9]
+    vd[d]['props'][l]['params']['skip_footer']=38
+
+    d ='201511'
+    l='I'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=3
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,4,5,7,8]
+    vd[d]['props'][l]['params']['skip_footer']=54
+
+    d ='201511'
+    l='D'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=3
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,4,5,7,8]
+    vd[d]['props'][l]['params']['skip_footer']=54
+
+    d ='200211'
+    l='R'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,53,54]
+    vd[d]['props'][l]['params']['skip_footer']=64
+
+    d ='200211'
+    l='B'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,21,22]
+    vd[d]['props'][l]['params']['skip_footer']=64
+
+    d ='201406'
+    l='B'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=0
+    vd[d]['props'][l]['params']['parse_cols']=[6,7,8,14,15]
+    vd[d]['props'][l]['params']['skip_footer']=55
+
+    d ='200411'
+    l='A'
+    f_name=vd[d]['filename']
+    s=vd[d]['props'][l]['s_name']
+
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=2
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,5,6]
+    vd[d]['props'][l]['params']['skip_footer']=32
+
+    d ='201311'
+    l='C'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,4,5]
+    vd[d]['props'][l]['params']['skip_footer']=54
+
+    d ='201311'
+    l='B'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,8,9]
+    vd[d]['props'][l]['params']['skip_footer']=54
+
+    d ='200611'
+    l='G'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,17,18]
+    vd[d]['props'][l]['params']['skip_footer']=33
+
+    d ='199706'
+    l='F'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=3
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,20,21]
+    vd[d]['props'][l]['params']['skip_footer']=38
+
+    d ='200003'
+    l='C'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=5
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,12,13]
+    vd[d]['props'][l]['params']['skip_footer']=52
+
+    d ='201411'
+    l='F'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=3
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,4,5,7,8]
+    vd[d]['props'][l]['params']['skip_footer']=54
+
+    d ='199811'
+    l='E'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=3
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,17,18]
+    vd[d]['props'][l]['params']['skip_footer']=38
+
+    d ='199806'
+    l='E'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=5
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,17,18]
+    vd[d]['props'][l]['params']['skip_footer']=35
+
+    d ='199806'
+    l='K'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=5
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,35,36]
+    vd[d]['props'][l]['params']['skip_footer']=35
+
+    d ='199806'
+    l='I'
+    vd[d]['props'][l]['params']={'index_col':0}
+    vd[d]['props'][l]['params']['skiprows']=5
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,29,30]
+    vd[d]['props'][l]['params']['skip_footer']=35
+
+    d ='200403'
+    l='J'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=1
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,33,34]
+    vd[d]['props'][l]['params']['skip_footer']=65
+
+    d ='200411'
+    l='A'
+    vd[d]['props'][l]['params']={'index_col':[0,1]}
+    vd[d]['props'][l]['params']['skiprows']=2
+    vd[d]['props'][l]['params']['parse_cols']=[0,1,2,3,5,6]
+    vd[d]['props'][l]['params']['skip_footer']=65
+
+    return(vd)
