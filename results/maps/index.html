@@ -1,8 +1,5 @@
 <html>
 
-<!-- TODO: 
-figure out why data is missing
--->
 
 <head>
   <title>San Francisco voting patterns</title>
@@ -45,12 +42,14 @@ figure out why data is missing
   <div id = "slider-1"></div>
   <div><p id = "yearElec">Select an election</p></div> 
   <div id="vars">
-    <input type="radio" id="pctNimby" name="var" value="Pct Nimby" checked="checked" /> 
+    <input type="radio" id="pctNimby" name="var" value="Percent Nimby" checked="checked" /> 
     <label for="pctNimby">Pct Nimby</label>
-    <input type="radio" id="medIncome" name="var" value="Med Income"> 
-    <label for="medIncome">Med Income</label>
     <input type="radio" id="turnout" name="var" value="Turnout"> 
     <label for="turnout">Turnout</label>
+    <input type="radio" id="medIncome" name="var" value="Med Income"> 
+    <label for="medIncome">Med Income</label>
+    <input type="radio" id="owned" name="var" value="Percent Owned"> 
+    <label for="owned">Pct Owned</label>
   </div>
 
 
@@ -77,7 +76,7 @@ figure out why data is missing
       ).addTo(map);
 
     // Set inital variable values. 
-    var varSelected = "Pct Nimby";
+    var varSelected = "Percent Nimby";
     var varId = "p";
     var grades = [0, .3, .45, .55, .7];
 
@@ -137,12 +136,11 @@ figure out why data is missing
       
 
       // Allow changing variables using radio buttons
-      
-
       $("#vars").buttonset();
       $("#pctNimby").button();
       $("#medIncome").button();
       $("#turnout").button();
+      $("#owned").button();
       
       $('#vars input').on('change', function() {
         varSelected=$("input[type='radio'][name='var']:checked").val();
@@ -178,6 +176,7 @@ figure out why data is missing
     function getVariableLabel(v){
       return v == "Med Income" ?  "m":
             v == "Turnout" ?  "t":
+            v == "Percent Owned" ? "o":
             "p";
     }
 
@@ -199,9 +198,12 @@ figure out why data is missing
           //popupLine1 = varName+String(Number(feature.properties[varToPopup]).toFixed(2));  // use this to change the popup variable
           popupTitle = '<strong>PRECINCT '+ feature.properties["a"]+'</strong>';
           popupLine1 = 'Pct nimby: '+String(Number(parseFloat(feature.properties["p"]*100).toFixed(1)).toLocaleString('en'))+'%';
-          popupLine2 = 'Med income: '+String(Number(parseFloat(feature.properties["m"]).toFixed(0)).toLocaleString('en'));
-          popupLine3 = 'Turnout: '+String(Number(parseFloat(feature.properties["t"]*100).toFixed(1)).toLocaleString('en'))+'%';
-          popupString = popupTitle+"<br>"+popupLine1+"<br>"+popupLine2+"<br>"+popupLine3;
+          popupLine3 = 'Med income: '+String(Number(parseFloat(feature.properties["m"]).toFixed(0)).toLocaleString('en'));
+          popupLine2= 'Turnout: '+String(Number(parseFloat(feature.properties["t"]*100).toFixed(1)).toLocaleString('en'))+'%';
+          popupLine4= 'Pct owned: '+String(Number(parseFloat(feature.properties["o"]*100).toFixed(1)).toLocaleString('en'))+'%';
+          
+
+          popupString = popupTitle+"<br>"+popupLine1+"<br>"+popupLine2+"<br>"+popupLine3+"<br>"+popupLine4;
           layer.bindPopup(popupString);
 
           layer.on({
@@ -264,7 +266,16 @@ figure out why data is missing
     function resetHighlight(e) {
       precinctPolygons.resetStyle(e.target);
     }
+    // INFO BOX //
+    var info = L.control({position:'bottomleft'});
 
+    info.onAdd = function (map) {
+        this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+        this._div.innerHTML = 'Use the slider to change the election and ballot measure, <br />  or select a variable';
+        return this._div;
+    };
+
+    info.addTo(map);
     
     // LEGEND // 
 
@@ -277,7 +288,7 @@ figure out why data is missing
           from, to;
 
       // loop through our density intervals and generate a label with a colored square for each interval
-      if (varSelected=="Pct Nimby"|varSelected=="Turnout"){
+      if ((varSelected=="Percent Nimby"|varSelected=="Turnout")|varSelected=="Percent Owned"){
         for (var i = 0; i < grades.length; i++) {
 
             from = grades[i];
@@ -318,8 +329,6 @@ figure out why data is missing
     };
 
     
-
-
   </script>
 </body>
 </html>

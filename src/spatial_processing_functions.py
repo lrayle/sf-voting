@@ -1,17 +1,20 @@
-###### SPATIAL PROCESSING FUNCTIONS ###### 
+"""spatial_processing_functions.py 
 
-# this module contains the functions needed for processing the census geography and SF precinct data. 
+This module contains the functions needed for processing the census geography and SF precinct data. 
 
+"""
 
 from geopandas import GeoDataFrame, read_file
 from geopandas.tools import overlay
 import pandas as pd
 
 
+
 def load_prec_shp(p_yr, path='../data/spatial/'):
-    """ Function to load precinct boundary files, given a year.
-    p_yr (str): precinct year
-    path (str): path to shapefile
+    """Load precinct boundary files, given a year.
+    Args: 
+        p_yr (str): precinct year
+        path (str): path to shapefile
     """
     filename = 'Precincts_{}/Precincts_{}.shp'.format(p_yr, p_yr)
     pre_df = read_file(path+filename)
