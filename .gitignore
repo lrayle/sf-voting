@@ -1,3 +1,4 @@
 *.DS_Store
 results/*
 data/SOV_w_nimby/*
+/results/*
